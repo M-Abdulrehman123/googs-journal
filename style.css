@@ -212,10 +212,19 @@ h1, h2, h3, h4 {
     gap: 0.5rem;
 }
 
+.sidebar-section {
+    align-self: start;
+    height: fit-content;
+}
+
 .trade-form {
     display: flex;
     flex-direction: column;
     gap: 1.2rem;
+}
+
+.trade-form .btn-primary {
+    width: 100%;
 }
 
 .form-row {
