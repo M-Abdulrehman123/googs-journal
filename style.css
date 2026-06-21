@@ -529,3 +529,74 @@ tbody td {
         transform: translateY(0);
     }
 }
+
+/* PDF Print Styling overrides */
+.pdf-export-mode {
+    background: #ffffff !important;
+    color: #0f172a !important;
+    padding: 2rem !important;
+    border-radius: 8px !important;
+    border: 1px solid #e2e8f0 !important;
+    box-shadow: none !important;
+}
+.pdf-export-mode h3 {
+    color: #0f172a !important;
+    border-bottom: 2px solid #e2e8f0 !important;
+    padding-bottom: 0.75rem !important;
+}
+.pdf-export-mode h3 i {
+    color: #475569 !important;
+}
+.pdf-export-mode table {
+    color: #0f172a !important;
+}
+.pdf-export-mode thead th {
+    color: #475569 !important;
+    border-bottom: 2px solid #cbd5e1 !important;
+    background: transparent !important;
+}
+.pdf-export-mode tbody tr {
+    border-bottom: 1px solid #e2e8f0 !important;
+    background: transparent !important;
+}
+.pdf-export-mode tbody td {
+    color: #0f172a !important;
+}
+.pdf-export-mode tbody tr:hover {
+    background: transparent !important;
+}
+.pdf-export-mode .table-tag {
+    background: #f1f5f9 !important;
+    color: #475569 !important;
+    border: 1px solid #e2e8f0 !important;
+}
+.pdf-export-mode .badge.long {
+    background: rgba(16, 185, 129, 0.15) !important;
+    color: #047857 !important;
+}
+.pdf-export-mode .badge.short {
+    background: rgba(244, 63, 94, 0.15) !important;
+    color: #be123c !important;
+}
+.pdf-export-mode .badge-outcome.win {
+    background: rgba(16, 185, 129, 0.15) !important;
+    color: #047857 !important;
+}
+.pdf-export-mode .badge-outcome.loss {
+    background: rgba(244, 63, 94, 0.15) !important;
+    color: #be123c !important;
+}
+.pdf-export-mode .badge-outcome.open {
+    background: rgba(6, 182, 212, 0.15) !important;
+    color: #0369a1 !important;
+}
+.pdf-export-mode .text-profit {
+    color: #047857 !important;
+}
+.pdf-export-mode .text-loss {
+    color: #be123c !important;
+}
+.pdf-export-mode th:last-child,
+.pdf-export-mode td:last-child {
+    display: none !important;
+}

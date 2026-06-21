@@ -171,15 +171,23 @@ function setupEventListeners() {
 
     // Export PDF Report
     document.getElementById('btn-export-pdf').addEventListener('click', () => {
-        const element = document.querySelector('.container');
+        const element = document.querySelector('.history-section');
+        
+        // Add PDF export class for styling overrides
+        element.classList.add('pdf-export-mode');
+        
         const opt = {
             margin: 0.5,
             filename: 'Goggs_Trading_Journal.pdf',
             image: { type: 'jpeg', quality: 0.98 },
-            html2canvas: { scale: 2, useCORS: true, backgroundColor: '#070a13' },
+            html2canvas: { scale: 2, useCORS: true, backgroundColor: '#ffffff' },
             jsPDF: { unit: 'in', format: 'letter', orientation: 'landscape' }
         };
-        html2pdf().set(opt).from(element).save();
+        
+        html2pdf().set(opt).from(element).save().then(() => {
+            // Remove the PDF class after generation is done to restore UI
+            element.classList.remove('pdf-export-mode');
+        });
     });
 }
 
