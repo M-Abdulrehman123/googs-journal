@@ -171,23 +171,152 @@ function setupEventListeners() {
 
     // Export PDF Report
     document.getElementById('btn-export-pdf').addEventListener('click', () => {
-        const element = document.querySelector('.history-section');
-        
-        // Add PDF export class for styling overrides
-        element.classList.add('pdf-export-mode');
-        
-        const opt = {
-            margin: 0.5,
-            filename: 'Goggs_Trading_Journal.pdf',
-            image: { type: 'jpeg', quality: 0.98 },
-            html2canvas: { scale: 2, useCORS: true, backgroundColor: '#ffffff' },
-            jsPDF: { unit: 'in', format: 'letter', orientation: 'landscape' }
-        };
-        
-        html2pdf().set(opt).from(element).save().then(() => {
-            // Remove the PDF class after generation is done to restore UI
-            element.classList.remove('pdf-export-mode');
-        });
+        generateAndExportPdf();
+    });
+}
+
+// Build a professional standalone PDF document and export it
+function generateAndExportPdf() {
+    const template = document.getElementById('pdf-template');
+    const now = new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+
+    // --- Compute summary stats ---
+    const closedTrades = trades.filter(t => t.status !== 'Open');
+    const wins = closedTrades.filter(t => t.status === 'Win').length;
+    const losses = closedTrades.filter(t => t.status === 'Loss').length;
+    const openCount = trades.filter(t => t.status === 'Open').length;
+    const winRate = closedTrades.length > 0 ? ((wins / closedTrades.length) * 100).toFixed(1) : '0.0';
+    const netProfit = closedTrades.reduce((acc, t) => acc + t.pnl, 0);
+    const netProfitStr = (netProfit >= 0 ? '+' : '') + '$' + netProfit.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    const gains = closedTrades.filter(t => t.pnl > 0).reduce((acc, t) => acc + t.pnl, 0);
+    const lossesVal = Math.abs(closedTrades.filter(t => t.pnl < 0).reduce((acc, t) => acc + t.pnl, 0));
+    const profitFactor = lossesVal > 0 ? (gains / lossesVal).toFixed(2) : gains > 0 ? '∞' : '1.00';
+    const equity = (startingCapital + netProfit).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+    // --- Build trade rows ---
+    const sortedTrades = [...trades].sort((a, b) => new Date(b.date) - new Date(a.date));
+    const tradeRowsHtml = sortedTrades.length === 0
+        ? `<tr><td colspan="9" style="text-align:center; padding: 2rem; color: #94a3b8; font-style: italic;">No trades logged yet.</td></tr>`
+        : sortedTrades.map((t, i) => {
+            const isWin = t.status === 'Win';
+            const isOpen = t.status === 'Open';
+            const pnlColor = isOpen ? '#64748b' : isWin ? '#047857' : '#be123c';
+            const pnlText = isOpen ? '—' : (t.pnl >= 0 ? '+' : '') + '$' + t.pnl.toLocaleString(undefined, { minimumFractionDigits: 2 }) + ` (${t.pips > 0 ? '+' : ''}${t.pips} pips)`;
+
+            let outcomeLabel = 'OPEN', outcomeBg = '#dbeafe', outcomeColor = '#1d4ed8';
+            if (t.outcome === 'TP')     { outcomeLabel = 'HIT TP';    outcomeBg = '#dcfce7'; outcomeColor = '#166534'; }
+            else if (t.outcome === 'SL')    { outcomeLabel = 'HIT SL';    outcomeBg = '#fee2e2'; outcomeColor = '#991b1b'; }
+            else if (t.outcome === 'BE')    { outcomeLabel = 'BREAKEVEN'; outcomeBg = '#fef9c3'; outcomeColor = '#854d0e'; }
+            else if (t.outcome === 'Manual') { outcomeLabel = 'MANUAL';    outcomeBg = '#ede9fe'; outcomeColor = '#5b21b6'; }
+
+            const actionBg   = t.action === 'Buy' ? '#dcfce7' : '#fee2e2';
+            const actionColor = t.action === 'Buy' ? '#166534'  : '#991b1b';
+            const rowBg = i % 2 === 0 ? '#ffffff' : '#f8fafc';
+
+            return `<tr style="background: ${rowBg};">
+                <td style="padding: 0.65rem 0.75rem; font-size: 0.78rem; color: #475569; white-space: nowrap;">${t.date}</td>
+                <td style="padding: 0.65rem 0.75rem; font-weight: 700; color: #0f172a; font-size: 0.9rem;">${t.pair}</td>
+                <td style="padding: 0.65rem 0.75rem;">
+                    <span style="background:${actionBg}; color:${actionColor}; padding: 0.2rem 0.55rem; border-radius: 4px; font-size: 0.72rem; font-weight: 700; letter-spacing: 0.04em;">${t.action.toUpperCase()}</span>
+                </td>
+                <td style="padding: 0.65rem 0.75rem; color: #334155; font-size: 0.85rem;">${t.lotSize}</td>
+                <td style="padding: 0.65rem 0.75rem; font-family: 'Fira Code', monospace; color: #334155; font-size: 0.82rem;">${t.entryPrice}</td>
+                <td style="padding: 0.65rem 0.75rem; font-family: 'Fira Code', monospace; color: #334155; font-size: 0.82rem;">${t.exitPrice || '—'}</td>
+                <td style="padding: 0.65rem 0.75rem; font-weight: 700; color: ${pnlColor}; font-size: 0.82rem;">${pnlText}</td>
+                <td style="padding: 0.65rem 0.75rem; color: #475569; font-size: 0.8rem;">${t.strategy || '—'}</td>
+                <td style="padding: 0.65rem 0.75rem; text-align: center;">
+                    <span style="background:${outcomeBg}; color:${outcomeColor}; padding: 0.2rem 0.55rem; border-radius: 4px; font-size: 0.72rem; font-weight: 700; letter-spacing: 0.04em;">${outcomeLabel}</span>
+                </td>
+            </tr>`;
+        }).join('');
+
+    // --- Inject full document into template ---
+    template.innerHTML = `
+    <div style="background:#ffffff; padding: 0; margin: 0; font-family: 'Outfit', -apple-system, sans-serif;">
+
+        <!-- HEADER BANNER -->
+        <div style="background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%); padding: 2rem 2.5rem; display: flex; justify-content: space-between; align-items: center; border-bottom: 3px solid #06b6d4;">
+            <div>
+                <div style="display: flex; align-items: center; gap: 0.6rem; margin-bottom: 0.25rem;">
+                    <div style="width: 10px; height: 10px; background: #06b6d4; border-radius: 50%;"></div>
+                    <span style="color: #06b6d4; font-size: 0.75rem; font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase;">Trading Journal Report</span>
+                </div>
+                <h1 style="color: #ffffff; font-size: 2rem; font-weight: 800; margin: 0; letter-spacing: -0.02em;">Goggs <span style="font-weight: 300; color: #94a3b8;">Journal</span></h1>
+                <p style="color: #64748b; font-size: 0.8rem; margin: 0.35rem 0 0 0;">Position History · Performance Report</p>
+            </div>
+            <div style="text-align: right;">
+                <div style="color: #94a3b8; font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 0.25rem;">Generated</div>
+                <div style="color: #e2e8f0; font-size: 0.9rem; font-weight: 500;">${now}</div>
+                <div style="margin-top: 0.6rem; background: rgba(6,182,212,0.15); border: 1px solid #06b6d4; border-radius: 6px; padding: 0.3rem 0.75rem; display: inline-block;">
+                    <span style="color: #06b6d4; font-size: 0.75rem; font-weight: 700;">CONFIDENTIAL</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- SUMMARY STATS STRIP -->
+        <div style="background: #f8fafc; border-bottom: 1px solid #e2e8f0; padding: 1.25rem 2.5rem; display: flex; gap: 0; justify-content: space-between;">
+            ${[
+                { label: 'Account Balance',  value: '$' + equity,      color: '#0f172a' },
+                { label: 'Net Profit / Loss', value: netProfitStr,      color: netProfit >= 0 ? '#047857' : '#be123c' },
+                { label: 'Win Rate',          value: winRate + '%',     color: '#1d4ed8' },
+                { label: 'Profit Factor',     value: profitFactor,      color: '#0f172a' },
+                { label: 'Total Trades',      value: trades.length,     color: '#0f172a' },
+                { label: 'Wins / Losses',     value: `${wins} / ${losses}`, color: '#0f172a' },
+                { label: 'Open Positions',    value: openCount,         color: '#64748b' },
+            ].map(s => `
+                <div style="text-align: center; flex: 1; border-right: 1px solid #e2e8f0; padding: 0 1rem; last-child: none;">
+                    <div style="color: #94a3b8; font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 0.3rem;">${s.label}</div>
+                    <div style="color: ${s.color}; font-size: 1.15rem; font-weight: 800;">${s.value}</div>
+                </div>`).join('')}
+        </div>
+
+        <!-- TRADES TABLE -->
+        <div style="padding: 1.75rem 2.5rem 2rem;">
+            <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 1.25rem; padding-bottom: 0.75rem; border-bottom: 2px solid #e2e8f0;">
+                <div style="width: 3px; height: 1.2rem; background: linear-gradient(to bottom, #06b6d4, #8b5cf6); border-radius: 2px;"></div>
+                <h2 style="font-size: 1rem; font-weight: 700; color: #0f172a; margin: 0; letter-spacing: -0.01em;">All Trade Entries</h2>
+                <span style="margin-left: auto; background: #f1f5f9; color: #475569; font-size: 0.72rem; font-weight: 600; padding: 0.2rem 0.6rem; border-radius: 20px; border: 1px solid #e2e8f0;">${trades.length} records</span>
+            </div>
+
+            <table style="width: 100%; border-collapse: collapse; font-size: 0.85rem;">
+                <thead>
+                    <tr style="background: #0f172a;">
+                        <th style="padding: 0.75rem; text-align: left; color: #94a3b8; font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.08em; font-weight: 600; white-space: nowrap;">Date</th>
+                        <th style="padding: 0.75rem; text-align: left; color: #94a3b8; font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.08em; font-weight: 600;">Pair</th>
+                        <th style="padding: 0.75rem; text-align: left; color: #94a3b8; font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.08em; font-weight: 600;">Side</th>
+                        <th style="padding: 0.75rem; text-align: left; color: #94a3b8; font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.08em; font-weight: 600;">Lots</th>
+                        <th style="padding: 0.75rem; text-align: left; color: #94a3b8; font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.08em; font-weight: 600;">Entry</th>
+                        <th style="padding: 0.75rem; text-align: left; color: #94a3b8; font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.08em; font-weight: 600;">Exit</th>
+                        <th style="padding: 0.75rem; text-align: left; color: #94a3b8; font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.08em; font-weight: 600; white-space: nowrap;">Net PnL (Pips)</th>
+                        <th style="padding: 0.75rem; text-align: left; color: #94a3b8; font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.08em; font-weight: 600;">Setup</th>
+                        <th style="padding: 0.75rem; text-align: center; color: #94a3b8; font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.08em; font-weight: 600;">Outcome</th>
+                    </tr>
+                </thead>
+                <tbody style="border: 1px solid #e2e8f0;">
+                    ${tradeRowsHtml}
+                </tbody>
+            </table>
+        </div>
+
+        <!-- FOOTER -->
+        <div style="background: #f8fafc; border-top: 1px solid #e2e8f0; padding: 0.9rem 2.5rem; display: flex; justify-content: space-between; align-items: center;">
+            <span style="color: #94a3b8; font-size: 0.72rem;">© Goggs Journal · Forex Trading Log</span>
+            <span style="color: #06b6d4; font-size: 0.72rem; font-weight: 600;">goggs-journal.vercel.app</span>
+        </div>
+
+    </div>`;
+
+    // Export the template
+    const opt = {
+        margin: 0,
+        filename: 'Goggs_Journal_Report.pdf',
+        image: { type: 'jpeg', quality: 0.99 },
+        html2canvas: { scale: 2, useCORS: true, backgroundColor: '#ffffff', logging: false },
+        jsPDF: { unit: 'px', format: [1100, 842], orientation: 'landscape', hotfixes: ['px_scaling'] }
+    };
+
+    html2pdf().set(opt).from(template).save().then(() => {
+        // template stays hidden, nothing to clean up
     });
 }
 
