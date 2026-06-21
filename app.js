@@ -175,9 +175,8 @@ function setupEventListeners() {
     });
 }
 
-// Build a professional standalone PDF document and export it
+// Build a professional standalone PDF document and export it via native browser print
 function generateAndExportPdf() {
-    const template = document.getElementById('pdf-template');
     const now = new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' });
 
     // --- Compute summary stats ---
@@ -230,121 +229,124 @@ function generateAndExportPdf() {
             </tr>`;
         }).join('');
 
-    // --- Inject full document into template ---
-    template.innerHTML = `
-    <div style="background:#ffffff; padding: 0; margin: 0; font-family: 'Outfit', -apple-system, sans-serif;">
+    // --- Stats strip cells ---
+    const statsHtml = [
+        { label: 'Account Balance',   value: '$' + equity,          color: '#0f172a' },
+        { label: 'Net Profit / Loss', value: netProfitStr,          color: netProfit >= 0 ? '#047857' : '#be123c' },
+        { label: 'Win Rate',          value: winRate + '%',         color: '#1d4ed8' },
+        { label: 'Profit Factor',     value: profitFactor,          color: '#0f172a' },
+        { label: 'Total Trades',      value: trades.length,         color: '#0f172a' },
+        { label: 'Wins / Losses',     value: `${wins} / ${losses}`, color: '#0f172a' },
+        { label: 'Open Positions',    value: openCount,             color: '#64748b' },
+    ].map(s => `
+        <div style="text-align:center;flex:1;padding:0 0.75rem;border-right:1px solid #e2e8f0;">
+            <div style="color:#94a3b8;font-size:0.65rem;text-transform:uppercase;letter-spacing:0.08em;margin-bottom:0.25rem;">${s.label}</div>
+            <div style="color:${s.color};font-size:1.1rem;font-weight:800;">${s.value}</div>
+        </div>`).join('');
 
-        <!-- HEADER BANNER -->
-        <div style="background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%); padding: 2rem 2.5rem; display: flex; justify-content: space-between; align-items: center; border-bottom: 3px solid #06b6d4;">
-            <div>
-                <div style="display: flex; align-items: center; gap: 0.6rem; margin-bottom: 0.25rem;">
-                    <div style="width: 10px; height: 10px; background: #06b6d4; border-radius: 50%;"></div>
-                    <span style="color: #06b6d4; font-size: 0.75rem; font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase;">Trading Journal Report</span>
-                </div>
-                <h1 style="color: #ffffff; font-size: 2rem; font-weight: 800; margin: 0; letter-spacing: -0.02em;">Goggs <span style="font-weight: 300; color: #94a3b8;">Journal</span></h1>
-                <p style="color: #64748b; font-size: 0.8rem; margin: 0.35rem 0 0 0;">Position History · Performance Report</p>
-            </div>
-            <div style="text-align: right;">
-                <div style="color: #94a3b8; font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 0.25rem;">Generated</div>
-                <div style="color: #e2e8f0; font-size: 0.9rem; font-weight: 500;">${now}</div>
-                <div style="margin-top: 0.6rem; background: rgba(6,182,212,0.15); border: 1px solid #06b6d4; border-radius: 6px; padding: 0.3rem 0.75rem; display: inline-block;">
-                    <span style="color: #06b6d4; font-size: 0.75rem; font-weight: 700;">CONFIDENTIAL</span>
-                </div>
-            </div>
-        </div>
+    // --- Build the complete standalone printable HTML page ---
+    const fullHtml = `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Goggs Journal — Trade Report</title>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { font-family:'Outfit',-apple-system,sans-serif; background:#fff; color:#0f172a; }
+  @media print {
+    body { -webkit-print-color-adjust:exact; print-color-adjust:exact; }
+    .no-print { display:none !important; }
+    @page { margin:0; size:A4 landscape; }
+  }
+  .save-btn {
+    position:fixed; top:1rem; right:1rem;
+    background:linear-gradient(135deg,#06b6d4,#8b5cf6);
+    color:#fff; border:none; padding:0.65rem 1.5rem;
+    border-radius:8px; font-size:0.9rem; font-weight:600;
+    cursor:pointer; z-index:999; font-family:'Outfit',sans-serif;
+    box-shadow:0 4px 15px rgba(6,182,212,0.3);
+  }
+  .save-btn:hover { opacity:0.9; }
+</style>
+</head>
+<body>
 
-        <!-- SUMMARY STATS STRIP -->
-        <div style="background: #f8fafc; border-bottom: 1px solid #e2e8f0; padding: 1.25rem 2.5rem; display: flex; gap: 0; justify-content: space-between;">
-            ${[
-                { label: 'Account Balance',  value: '$' + equity,      color: '#0f172a' },
-                { label: 'Net Profit / Loss', value: netProfitStr,      color: netProfit >= 0 ? '#047857' : '#be123c' },
-                { label: 'Win Rate',          value: winRate + '%',     color: '#1d4ed8' },
-                { label: 'Profit Factor',     value: profitFactor,      color: '#0f172a' },
-                { label: 'Total Trades',      value: trades.length,     color: '#0f172a' },
-                { label: 'Wins / Losses',     value: `${wins} / ${losses}`, color: '#0f172a' },
-                { label: 'Open Positions',    value: openCount,         color: '#64748b' },
-            ].map(s => `
-                <div style="text-align: center; flex: 1; border-right: 1px solid #e2e8f0; padding: 0 1rem; last-child: none;">
-                    <div style="color: #94a3b8; font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 0.3rem;">${s.label}</div>
-                    <div style="color: ${s.color}; font-size: 1.15rem; font-weight: 800;">${s.value}</div>
-                </div>`).join('')}
-        </div>
+<button class="save-btn no-print" onclick="window.print()">⬇ Save as PDF</button>
 
-        <!-- TRADES TABLE -->
-        <div style="padding: 1.75rem 2.5rem 2rem;">
-            <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 1.25rem; padding-bottom: 0.75rem; border-bottom: 2px solid #e2e8f0;">
-                <div style="width: 3px; height: 1.2rem; background: linear-gradient(to bottom, #06b6d4, #8b5cf6); border-radius: 2px;"></div>
-                <h2 style="font-size: 1rem; font-weight: 700; color: #0f172a; margin: 0; letter-spacing: -0.01em;">All Trade Entries</h2>
-                <span style="margin-left: auto; background: #f1f5f9; color: #475569; font-size: 0.72rem; font-weight: 600; padding: 0.2rem 0.6rem; border-radius: 20px; border: 1px solid #e2e8f0;">${trades.length} records</span>
-            </div>
+<!-- HEADER -->
+<div style="background:linear-gradient(135deg,#0f172a 0%,#1e293b 100%);padding:1.75rem 2.5rem;display:flex;justify-content:space-between;align-items:center;border-bottom:3px solid #06b6d4;">
+  <div>
+    <div style="display:flex;align-items:center;gap:0.5rem;margin-bottom:0.2rem;">
+      <div style="width:8px;height:8px;background:#06b6d4;border-radius:50%;"></div>
+      <span style="color:#06b6d4;font-size:0.7rem;font-weight:600;letter-spacing:0.12em;text-transform:uppercase;">Trading Journal Report</span>
+    </div>
+    <h1 style="color:#fff;font-size:1.9rem;font-weight:800;letter-spacing:-0.02em;">Goggs <span style="font-weight:300;color:#94a3b8;">Journal</span></h1>
+    <p style="color:#64748b;font-size:0.78rem;margin-top:0.2rem;">Position History · Performance Report</p>
+  </div>
+  <div style="text-align:right;">
+    <div style="color:#94a3b8;font-size:0.65rem;text-transform:uppercase;letter-spacing:0.08em;margin-bottom:0.2rem;">Generated</div>
+    <div style="color:#e2e8f0;font-size:0.85rem;font-weight:500;">${now}</div>
+    <div style="margin-top:0.5rem;background:rgba(6,182,212,0.12);border:1px solid #06b6d4;border-radius:5px;padding:0.25rem 0.65rem;display:inline-block;">
+      <span style="color:#06b6d4;font-size:0.7rem;font-weight:700;">CONFIDENTIAL</span>
+    </div>
+  </div>
+</div>
 
-            <table style="width: 100%; border-collapse: collapse; font-size: 0.85rem;">
-                <thead>
-                    <tr style="background: #0f172a;">
-                        <th style="padding: 0.75rem; text-align: left; color: #94a3b8; font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.08em; font-weight: 600; white-space: nowrap;">Date</th>
-                        <th style="padding: 0.75rem; text-align: left; color: #94a3b8; font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.08em; font-weight: 600;">Pair</th>
-                        <th style="padding: 0.75rem; text-align: left; color: #94a3b8; font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.08em; font-weight: 600;">Side</th>
-                        <th style="padding: 0.75rem; text-align: left; color: #94a3b8; font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.08em; font-weight: 600;">Lots</th>
-                        <th style="padding: 0.75rem; text-align: left; color: #94a3b8; font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.08em; font-weight: 600;">Entry</th>
-                        <th style="padding: 0.75rem; text-align: left; color: #94a3b8; font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.08em; font-weight: 600;">Exit</th>
-                        <th style="padding: 0.75rem; text-align: left; color: #94a3b8; font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.08em; font-weight: 600; white-space: nowrap;">Net PnL (Pips)</th>
-                        <th style="padding: 0.75rem; text-align: left; color: #94a3b8; font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.08em; font-weight: 600;">Setup</th>
-                        <th style="padding: 0.75rem; text-align: center; color: #94a3b8; font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.08em; font-weight: 600;">Outcome</th>
-                    </tr>
-                </thead>
-                <tbody style="border: 1px solid #e2e8f0;">
-                    ${tradeRowsHtml}
-                </tbody>
-            </table>
-        </div>
+<!-- STATS STRIP -->
+<div style="background:#f8fafc;border-bottom:1px solid #e2e8f0;padding:1rem 2.5rem;display:flex;">
+  ${statsHtml}
+</div>
 
-        <!-- FOOTER -->
-        <div style="background: #f8fafc; border-top: 1px solid #e2e8f0; padding: 0.9rem 2.5rem; display: flex; justify-content: space-between; align-items: center;">
-            <span style="color: #94a3b8; font-size: 0.72rem;">© Goggs Journal · Forex Trading Log</span>
-            <span style="color: #06b6d4; font-size: 0.72rem; font-weight: 600;">goggs-journal.vercel.app</span>
-        </div>
+<!-- TABLE -->
+<div style="padding:1.5rem 2.5rem 2rem;">
+  <div style="display:flex;align-items:center;gap:0.5rem;margin-bottom:1rem;padding-bottom:0.6rem;border-bottom:2px solid #e2e8f0;">
+    <div style="width:3px;height:1rem;background:linear-gradient(to bottom,#06b6d4,#8b5cf6);border-radius:2px;"></div>
+    <h2 style="font-size:0.95rem;font-weight:700;color:#0f172a;">All Trade Entries</h2>
+    <span style="margin-left:auto;background:#f1f5f9;color:#475569;font-size:0.7rem;font-weight:600;padding:0.15rem 0.55rem;border-radius:20px;border:1px solid #e2e8f0;">${trades.length} records</span>
+  </div>
+  <table style="width:100%;border-collapse:collapse;font-size:0.82rem;">
+    <thead>
+      <tr style="background:#0f172a;">
+        <th style="padding:0.65rem 0.75rem;text-align:left;color:#94a3b8;font-size:0.65rem;text-transform:uppercase;letter-spacing:0.07em;font-weight:600;">Date</th>
+        <th style="padding:0.65rem 0.75rem;text-align:left;color:#94a3b8;font-size:0.65rem;text-transform:uppercase;letter-spacing:0.07em;font-weight:600;">Pair</th>
+        <th style="padding:0.65rem 0.75rem;text-align:left;color:#94a3b8;font-size:0.65rem;text-transform:uppercase;letter-spacing:0.07em;font-weight:600;">Side</th>
+        <th style="padding:0.65rem 0.75rem;text-align:left;color:#94a3b8;font-size:0.65rem;text-transform:uppercase;letter-spacing:0.07em;font-weight:600;">Lots</th>
+        <th style="padding:0.65rem 0.75rem;text-align:left;color:#94a3b8;font-size:0.65rem;text-transform:uppercase;letter-spacing:0.07em;font-weight:600;">Entry</th>
+        <th style="padding:0.65rem 0.75rem;text-align:left;color:#94a3b8;font-size:0.65rem;text-transform:uppercase;letter-spacing:0.07em;font-weight:600;">Exit</th>
+        <th style="padding:0.65rem 0.75rem;text-align:left;color:#94a3b8;font-size:0.65rem;text-transform:uppercase;letter-spacing:0.07em;font-weight:600;">Net PnL (Pips)</th>
+        <th style="padding:0.65rem 0.75rem;text-align:left;color:#94a3b8;font-size:0.65rem;text-transform:uppercase;letter-spacing:0.07em;font-weight:600;">Setup</th>
+        <th style="padding:0.65rem 0.75rem;text-align:center;color:#94a3b8;font-size:0.65rem;text-transform:uppercase;letter-spacing:0.07em;font-weight:600;">Outcome</th>
+      </tr>
+    </thead>
+    <tbody>${tradeRowsHtml}</tbody>
+  </table>
+</div>
 
-    </div>`;
+<!-- FOOTER -->
+<div style="background:#f8fafc;border-top:1px solid #e2e8f0;padding:0.8rem 2.5rem;display:flex;justify-content:space-between;align-items:center;">
+  <span style="color:#94a3b8;font-size:0.7rem;">© Goggs Journal · Forex Trading Log</span>
+  <span style="color:#06b6d4;font-size:0.7rem;font-weight:600;">goggs-journal.vercel.app</span>
+</div>
 
-    // ── Temporarily bring template on-screen so html2canvas can paint it ──
-    // html2canvas cannot render elements at left:-9999px (they are clipped)
-    Object.assign(template.style, {
-        position: 'fixed',
-        top: '0',
-        left: '0',
-        opacity: '0',
-        pointerEvents: 'none',
-        zIndex: '99999',
-        width: '1100px'
-    });
+</body>
+</html>`;
 
-    const opt = {
-        margin: 0,
-        filename: 'Goggs_Journal_Report.pdf',
-        image: { type: 'jpeg', quality: 0.99 },
-        html2canvas: {
-            scale: 2,
-            useCORS: true,
-            backgroundColor: '#ffffff',
-            logging: false,
-            width: 1100,
-            windowWidth: 1100
-        },
-        jsPDF: { unit: 'px', format: [1100, 842], orientation: 'landscape', hotfixes: ['px_scaling'] }
-    };
+    // Open the report in a new popup window and trigger the print dialog
+    const printWin = window.open('', '_blank', 'width=1200,height=850,scrollbars=yes,resizable=yes');
+    if (!printWin) {
+        alert('Pop-ups are blocked!\n\nPlease allow pop-ups for this site:\nClick the icon in your address bar → Allow pop-ups → then try again.');
+        return;
+    }
+    printWin.document.open();
+    printWin.document.write(fullHtml);
+    printWin.document.close();
 
-    html2pdf().set(opt).from(template).save().then(() => {
-        // Restore to hidden off-screen position after export
-        Object.assign(template.style, {
-            position: 'absolute',
-            top: '0',
-            left: '-9999px',
-            opacity: '1',
-            pointerEvents: '',
-            zIndex: ''
-        });
-    });
+    // Wait for Google Fonts to load then auto-trigger print
+    printWin.onload = () => setTimeout(() => printWin.print(), 700);
 }
+
+
 
 // Reset Tag Buttons
 function resetTags() {
