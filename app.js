@@ -306,17 +306,43 @@ function generateAndExportPdf() {
 
     </div>`;
 
-    // Export the template
+    // ── Temporarily bring template on-screen so html2canvas can paint it ──
+    // html2canvas cannot render elements at left:-9999px (they are clipped)
+    Object.assign(template.style, {
+        position: 'fixed',
+        top: '0',
+        left: '0',
+        opacity: '0',
+        pointerEvents: 'none',
+        zIndex: '99999',
+        width: '1100px'
+    });
+
     const opt = {
         margin: 0,
         filename: 'Goggs_Journal_Report.pdf',
         image: { type: 'jpeg', quality: 0.99 },
-        html2canvas: { scale: 2, useCORS: true, backgroundColor: '#ffffff', logging: false },
+        html2canvas: {
+            scale: 2,
+            useCORS: true,
+            backgroundColor: '#ffffff',
+            logging: false,
+            width: 1100,
+            windowWidth: 1100
+        },
         jsPDF: { unit: 'px', format: [1100, 842], orientation: 'landscape', hotfixes: ['px_scaling'] }
     };
 
     html2pdf().set(opt).from(template).save().then(() => {
-        // template stays hidden, nothing to clean up
+        // Restore to hidden off-screen position after export
+        Object.assign(template.style, {
+            position: 'absolute',
+            top: '0',
+            left: '-9999px',
+            opacity: '1',
+            pointerEvents: '',
+            zIndex: ''
+        });
     });
 }
 
