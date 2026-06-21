@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Goggs Journal | Professional Forex Log</title>
+    
+    <!-- Google Fonts: Outfit (modern UI headings) and Space Grotesk (numerical accents) -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+    
+    <!-- FontAwesome for iconography -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- html2pdf.js for exporting dashboard reports to PDF -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    
+    <!-- Custom CSS Stylesheet -->
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+    <div class="container">
+        
+        <!-- App Header -->
+        <header class="app-header">
+            <div class="logo-section">
+                <h1><i class="fa-solid fa-chart-line text-accent"></i> Goggs <span style="font-weight: 300;">Journal</span></h1>
+            </div>
+            
+            <div style="display: flex; align-items: center; gap: 1rem;">
+                <button id="btn-export-pdf" class="btn-primary" style="margin-top: 0; padding: 0.5rem 1.2rem; background: var(--accent-violet);" data-html2pdf-ignore>
+                    <i class="fa-solid fa-file-pdf"></i> Export PDF Report
+                </button>
+                <div class="settings-panel glass-card" style="padding: 0.5rem 1rem;" data-html2pdf-ignore>
+                    <label for="starting-capital"><i class="fa-solid fa-wallet text-accent"></i> Starting Capital:</label>
+                    <div style="display: flex; align-items: center; gap: 0.25rem;">
+                        <span style="color: var(--text-muted); font-family: var(--font-code);">$</span>
+                        <input type="number" id="starting-capital" class="input-balance" value="10000" min="1" step="100">
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <!-- Metric Statistics Bar -->
+        <section class="metrics-grid">
+            <div class="metric-card glass-card">
+                <span class="metric-label"><i class="fa-solid fa-scale-balanced"></i> Account Balance</span>
+                <span class="metric-val" id="metric-equity">$10,000.00</span>
+            </div>
+            <div class="metric-card glass-card">
+                <span class="metric-label"><i class="fa-solid fa-money-bill-trend-up"></i> Total Net Profit</span>
+                <span class="metric-val text-profit" id="metric-profit">+$0.00</span>
+            </div>
+            <div class="metric-card glass-card">
+                <span class="metric-label"><i class="fa-solid fa-award"></i> Win Rate</span>
+                <span class="metric-val" id="metric-winrate" style="color: var(--accent-cyber);">0.0%</span>
+            </div>
+            <div class="metric-card glass-card">
+                <span class="metric-label"><i class="fa-solid fa-percent"></i> Profit Factor</span>
+                <span class="metric-val" id="metric-profit-factor">1.00</span>
+            </div>
+            <div class="metric-card glass-card">
+                <span class="metric-label"><i class="fa-solid fa-database"></i> Total Logs</span>
+                <span class="metric-val" id="metric-total-trades">0</span>
+            </div>
+        </section>
+
+        <!-- Dashboard Split Columns -->
+        <div class="dashboard-body">
+            
+            <!-- Left Column: Form Sidebar Entry -->
+            <aside class="sidebar-section glass-card" data-html2pdf-ignore>
+                <h2 class="form-title"><i class="fa-solid fa-pen-to-square text-accent"></i> Log New Position</h2>
+                
+                <form id="trade-form" class="trade-form">
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="pair">Currency Pair</label>
+                            <select id="pair" class="form-select" required>
+                                <option value="EURUSD">EUR/USD</option>
+                                <option value="GBPUSD">GBP/USD</option>
+                                <option value="USDJPY">USD/JPY</option>
+                                <option value="AUDUSD">AUD/USD</option>
+                                <option value="USDCAD">USD/CAD</option>
+                                <option value="USDCHF">USD/CHF</option>
+                                <option value="NZDUSD">NZD/USD</option>
+                                <option value="GBPJPY">GBP/JPY</option>
+                                <option value="EURJPY">EUR/JPY</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="action">Action</label>
+                            <select id="action" class="form-select" required>
+                                <option value="Buy">Buy (Long)</option>
+                                <option value="Sell">Sell (Short)</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="lots">Lot Size</label>
+                            <input type="number" id="lots" class="form-input" placeholder="e.g. 0.10" min="0.01" step="0.01" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="entry-price">Entry Price</label>
+                            <input type="number" id="entry-price" class="form-input" placeholder="e.g. 1.09500" step="any" required>
+                        </div>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="stop-loss">Stop Loss (SL)</label>
+                            <input type="number" id="stop-loss" class="form-input" placeholder="e.g. 1.09000" step="any" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="take-profit">Take Profit (TP)</label>
+                            <input type="number" id="take-profit" class="form-input" placeholder="e.g. 1.10500" step="any" required>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="outcome">Trade Outcome</label>
+                        <select id="outcome" class="form-select" required>
+                            <option value="Open">Open Position</option>
+                            <option value="TP">Hit Take Profit (TP)</option>
+                            <option value="SL">Hit Stop Loss (SL)</option>
+                            <option value="BE">Breakeven (BE)</option>
+                            <option value="Manual">Closed Manually</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group" id="manual-exit-group" style="display: none;">
+                        <label for="exit-price">Manual Exit Price</label>
+                        <input type="number" id="exit-price" class="form-input" placeholder="e.g. 1.10000" step="any">
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="strategy">Setup / Strategy</label>
+                            <input type="text" id="strategy" class="form-input" placeholder="e.g. Orderblock, FVG">
+                        </div>
+                        <div class="form-group">
+                            <label for="trade-date">Execution Date</label>
+                            <input type="datetime-local" id="trade-date" class="form-input">
+                        </div>
+                    </div>
+
+                    <!-- Psychology Tag Selectors -->
+                    <div class="form-group">
+                        <label>Psychological / Mental State</label>
+                        <div class="tags-container">
+                            <span class="psych-tag" data-tag="Disciplined"><i class="fa-solid fa-circle-check"></i> Disciplined</span>
+                            <span class="psych-tag" data-tag="Patient"><i class="fa-solid fa-hourglass-start"></i> Patient</span>
+                            <span class="psych-tag" data-tag="FOMO"><i class="fa-solid fa-running"></i> FOMO</span>
+                            <span class="psych-tag" data-tag="Greed"><i class="fa-solid fa-piggy-bank"></i> Greed</span>
+                            <span class="psych-tag" data-tag="Anxious"><i class="fa-solid fa-heart-beat"></i> Anxious</span>
+                            <span class="psych-tag" data-tag="Confident"><i class="fa-solid fa-shield-halved"></i> Confident</span>
+                        </div>
+                    </div>
+
+                    <button type="submit" class="btn-primary">
+                        <i class="fa-solid fa-pen-nib"></i> Log Trade Entry
+                    </button>
+
+                </form>
+            </aside>
+            
+            <!-- Right Column: Visual Equity Curve Analytics -->
+            <main class="analytics-section">
+                <div class="glass-card chart-card">
+                    <div class="chart-header">
+                        <span class="chart-title"><i class="fa-solid fa-chart-area text-accent"></i> Equity Curve Growth</span>
+                        <span style="font-size: 0.8rem; color: var(--text-muted); font-family: var(--font-code);">Realtime Account Projection</span>
+                    </div>
+                    
+                    <div class="canvas-wrapper">
+                        <canvas id="equity-chart"></canvas>
+                    </div>
+                </div>
+            </main>
+
+        </div>
+
+        <!-- Bottom Row: Trade Log History Database -->
+        <section class="glass-card history-section">
+            <div class="table-filters">
+                <h3 style="font-size: 1.25rem; color: var(--text-glow); display: flex; align-items: center; gap: 0.5rem;">
+                    <i class="fa-solid fa-clock-rotate-left text-accent"></i> Position History Log
+                </h3>
+                
+                <div class="filter-group">
+                    <input type="text" id="search-trade" class="filter-input" placeholder="Search by Pair or Strategy...">
+                    
+                    <select id="filter-status" class="form-select" style="padding: 0.5rem 1rem; font-size: 0.85rem;">
+                        <option value="All">All Outcome Logs</option>
+                        <option value="Wins">Wins Only</option>
+                        <option value="Losses">Losses Only</option>
+                        <option value="Open">Open Positions</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="table-container">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Execution Date</th>
+                            <th>Pair</th>
+                            <th>Action</th>
+                            <th>Size</th>
+                            <th>Entry Price</th>
+                            <th>Exit Price</th>
+                            <th>Net PnL (Pips)</th>
+                            <th>Setup</th>
+                            <th>Psychology</th>
+                            <th>Outcome</th>
+                            <th>Action</th>
+                        </tr>
+                    </thead>
+                    <tbody id="trades-table-body">
+                        <!-- Filled dynamically by JavaScript -->
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+    </div>
+
+    <!-- Script imports -->
+    <script src="app.js"></script>
+</body>
+</html>
