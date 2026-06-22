@@ -136,9 +136,10 @@ function setupEventListeners() {
             let multiplier, contractSize;
 
             if (isGold) {
-                // XAU/USD: 1 pip = $0.01 movement, 100 oz per standard lot
-                multiplier   = 100;
-                contractSize = 100;
+                // XAU/USD: $1 price move = 10 pips = $10 per 1.0 lot
+                // e.g. 3000 → 3001 = 10 pips = $10
+                multiplier   = 10;
+                contractSize = 10;
             } else if (isSilver) {
                 // XAG/USD: 1 pip = $0.01 movement, 5000 oz per standard lot
                 multiplier   = 100;
