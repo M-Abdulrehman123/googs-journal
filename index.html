@@ -160,8 +160,16 @@
                         </div>
                     </div>
 
-                    <button type="submit" class="btn-primary">
-                        <i class="fa-solid fa-pen-nib"></i> Log Trade Entry
+                    <!-- Hidden field stores trade ID when editing -->
+                    <input type="hidden" id="edit-trade-id" value="">
+
+                    <button type="submit" class="btn-primary" id="btn-submit-trade">
+                        <i class="fa-solid fa-pen-nib" id="submit-icon"></i>
+                        <span id="submit-label">Log Trade Entry</span>
+                    </button>
+
+                    <button type="button" class="btn-cancel" id="btn-cancel-edit" style="display:none;">
+                        <i class="fa-solid fa-xmark"></i> Cancel Edit
                     </button>
 
                 </form>
@@ -182,6 +190,33 @@
             </main>
 
         </div>
+
+        <!-- Daily P&L Calendar Section -->
+        <section class="glass-card calendar-section">
+            <div class="calendar-header">
+                <span class="calendar-title">
+                    <i class="fa-solid fa-calendar-days text-accent"></i>
+                    Daily P&amp;L Calendar
+                </span>
+                <div class="calendar-nav">
+                    <button class="btn-cal-nav" id="cal-prev"><i class="fa-solid fa-chevron-left"></i></button>
+                    <span class="calendar-month-label" id="cal-month-label">June 2026</span>
+                    <button class="btn-cal-nav" id="cal-next"><i class="fa-solid fa-chevron-right"></i></button>
+                </div>
+            </div>
+            <div class="calendar-weekdays">
+                <div class="cal-weekday">Mon</div>
+                <div class="cal-weekday">Tue</div>
+                <div class="cal-weekday">Wed</div>
+                <div class="cal-weekday">Thu</div>
+                <div class="cal-weekday">Fri</div>
+                <div class="cal-weekday">Sat</div>
+                <div class="cal-weekday">Sun</div>
+            </div>
+            <div class="calendar-grid" id="calendar-grid">
+                <!-- Populated by renderCalendar() in app.js -->
+            </div>
+        </section>
 
         <!-- Bottom Row: Trade Log History Database -->
         <section class="glass-card history-section">

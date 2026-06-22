@@ -6,6 +6,12 @@
 let startingCapital = 10000;
 let trades = [];
 let selectedTags = [];
+let editingTradeId = null;
+
+// Calendar State
+const today = new Date();
+let calendarYear  = today.getFullYear();
+let calendarMonth = today.getMonth(); // 0-indexed
 
 // DOM Elements
 const balanceInput = document.getElementById('starting-capital');
@@ -136,34 +142,34 @@ function setupEventListeners() {
             status = pnl >= 0 ? 'Win' : 'Loss';
         }
 
-        const newTrade = {
-            id: Date.now().toString(),
-            pair,
-            action,
-            lotSize,
-            entryPrice,
-            exitPrice,
-            stopLoss,
-            takeProfit,
-            strategy,
+        const tradeData = {
+            pair, action, lotSize, entryPrice, exitPrice,
+            stopLoss, takeProfit, strategy,
             tags: [...selectedTags],
             date: tradeDate,
             pips: parseFloat(pips.toFixed(1)),
-            pnl: parseFloat(pnl.toFixed(2)),
-            status,
-            outcome
+            pnl:  parseFloat(pnl.toFixed(2)),
+            status, outcome
         };
 
-        trades.push(newTrade);
+        if (editingTradeId) {
+            // UPDATE existing trade
+            const idx = trades.findIndex(t => t.id === editingTradeId);
+            if (idx !== -1) {
+                trades[idx] = { ...trades[idx], ...tradeData };
+            }
+        } else {
+            // CREATE new trade
+            trades.push({ id: Date.now().toString(), ...tradeData });
+        }
+
         saveData();
         updateDashboard();
-        
-        // Reset form
-        tradeForm.reset();
-        resetTags();
-        manualExitGroup.style.display = 'none';
-        exitPriceInput.removeAttribute('required');
+        cancelEdit();
     });
+
+    // Cancel Edit button
+    document.getElementById('btn-cancel-edit').addEventListener('click', cancelEdit);
 
     // Table Filters
     searchInput.addEventListener('input', renderTradesList);
@@ -172,6 +178,18 @@ function setupEventListeners() {
     // Export PDF Report
     document.getElementById('btn-export-pdf').addEventListener('click', () => {
         generateAndExportPdf();
+    });
+
+    // Calendar month navigation
+    document.getElementById('cal-prev').addEventListener('click', () => {
+        calendarMonth--;
+        if (calendarMonth < 0) { calendarMonth = 11; calendarYear--; }
+        renderCalendar();
+    });
+    document.getElementById('cal-next').addEventListener('click', () => {
+        calendarMonth++;
+        if (calendarMonth > 11) { calendarMonth = 0; calendarYear++; }
+        renderCalendar();
     });
 }
 
@@ -380,10 +398,154 @@ function loadData() {
 window.deleteTrade = function(id) {
     if (confirm('Are you sure you want to delete this trade log?')) {
         trades = trades.filter(t => t.id !== id);
+        if (editingTradeId === id) cancelEdit();
         saveData();
         updateDashboard();
     }
 };
+
+// Edit a trade — pre-fill the form
+window.editTrade = function(id) {
+    const trade = trades.find(t => t.id === id);
+    if (!trade) return;
+
+    editingTradeId = id;
+
+    // Populate every form field
+    document.getElementById('pair').value         = trade.pair;
+    document.getElementById('action').value       = trade.action;
+    document.getElementById('lots').value         = trade.lotSize;
+    document.getElementById('entry-price').value  = trade.entryPrice;
+    document.getElementById('stop-loss').value    = trade.stopLoss  || '';
+    document.getElementById('take-profit').value  = trade.takeProfit || '';
+    document.getElementById('outcome').value      = trade.outcome || 'Open';
+    document.getElementById('strategy').value     = trade.strategy || '';
+    document.getElementById('edit-trade-id').value = id;
+
+    // Handle manual exit price visibility
+    const manualGroup = document.getElementById('manual-exit-group');
+    if (trade.outcome === 'Manual') {
+        manualGroup.style.display = 'block';
+        document.getElementById('exit-price').value = trade.exitPrice || '';
+    } else {
+        manualGroup.style.display = 'none';
+    }
+
+    // Date field (convert locale string back to datetime-local format)
+    try {
+        const d = new Date(trade.date);
+        if (!isNaN(d)) {
+            const pad = n => String(n).padStart(2,'0');
+            document.getElementById('trade-date').value =
+                `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+        }
+    } catch(e) {}
+
+    // Restore psych tags
+    resetTags();
+    if (trade.tags) {
+        trade.tags.forEach(tag => {
+            const el = document.querySelector(`.psych-tag[data-tag="${tag}"]`);
+            if (el) { el.classList.add('active'); selectedTags.push(tag); }
+        });
+    }
+
+    // Enter edit-mode UI state
+    document.getElementById('submit-icon').className  = 'fa-solid fa-floppy-disk';
+    document.getElementById('submit-label').textContent = 'Update Trade';
+    document.getElementById('btn-cancel-edit').style.display = 'flex';
+    document.querySelector('.sidebar-section').classList.add('edit-mode');
+    document.querySelector('.form-title').innerHTML = '<i class="fa-solid fa-pen-to-square"></i> Edit Position';
+
+    // Scroll form into view
+    document.querySelector('.sidebar-section').scrollIntoView({ behavior: 'smooth', block: 'start' });
+};
+
+// Cancel edit mode — reset form to default state
+function cancelEdit() {
+    editingTradeId = null;
+    document.getElementById('edit-trade-id').value = '';
+    tradeForm.reset();
+    resetTags();
+    document.getElementById('manual-exit-group').style.display = 'none';
+    document.getElementById('exit-price').removeAttribute('required');
+    document.getElementById('submit-icon').className  = 'fa-solid fa-pen-nib';
+    document.getElementById('submit-label').textContent = 'Log Trade Entry';
+    document.getElementById('btn-cancel-edit').style.display = 'none';
+    document.querySelector('.sidebar-section').classList.remove('edit-mode');
+    document.querySelector('.form-title').innerHTML = '<i class="fa-solid fa-pen-to-square text-accent"></i> Log New Position';
+}
+
+// ─── Daily P&L Calendar Renderer ───────────────────────────────────────────
+function renderCalendar() {
+    const grid   = document.getElementById('calendar-grid');
+    const label  = document.getElementById('cal-month-label');
+    if (!grid || !label) return;
+
+    const MONTHS = ['January','February','March','April','May','June',
+                    'July','August','September','October','November','December'];
+
+    label.textContent = `${MONTHS[calendarMonth]} ${calendarYear}`;
+
+    // Aggregate closed trades by YYYY-MM-DD date key
+    const dailyPnl = {}; // { 'YYYY-MM-DD': { pnl, count } }
+    trades.filter(t => t.status !== 'Open').forEach(t => {
+        const d = new Date(t.date);
+        if (isNaN(d)) return;
+        const key = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+        if (!dailyPnl[key]) dailyPnl[key] = { pnl: 0, count: 0 };
+        dailyPnl[key].pnl   += t.pnl;
+        dailyPnl[key].count += 1;
+    });
+
+    // First day of the month (0=Sun…6=Sat) — convert to Mon-based index
+    const firstDay = new Date(calendarYear, calendarMonth, 1).getDay();
+    const startOffset = (firstDay === 0 ? 6 : firstDay - 1); // Mon=0, Sun=6
+    const daysInMonth = new Date(calendarYear, calendarMonth + 1, 0).getDate();
+    const todayKey = `${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}-${String(today.getDate()).padStart(2,'0')}`;
+
+    let html = '';
+
+    // Empty leading cells
+    for (let i = 0; i < startOffset; i++) {
+        html += `<div class="cal-day empty"></div>`;
+    }
+
+    // Day cells
+    for (let day = 1; day <= daysInMonth; day++) {
+        const key = `${calendarYear}-${String(calendarMonth+1).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
+        const data = dailyPnl[key];
+        const isToday   = key === todayKey;
+        const isFuture  = new Date(calendarYear, calendarMonth, day) > today && key !== todayKey;
+
+        let cellClass = 'cal-day';
+        let pnlHtml   = '';
+        let countHtml = '';
+
+        if (data) {
+            cellClass += ' has-trades';
+            if      (data.pnl > 0.005)  cellClass += ' win-day';
+            else if (data.pnl < -0.005) cellClass += ' loss-day';
+            else                         cellClass += ' break-day';
+
+            const sign = data.pnl >= 0 ? '+' : '';
+            pnlHtml   = `<span class="cal-day-pnl">${sign}$${Math.abs(data.pnl).toFixed(2)}</span>`;
+            countHtml = `<span class="cal-day-trades">${data.count} trade${data.count > 1 ? 's' : ''}</span>`;
+        }
+
+        if (isToday)  cellClass += ' today';
+        if (isFuture) cellClass += ' future-day';
+
+        html += `
+        <div class="${cellClass}">
+            <span class="cal-day-num">${day}</span>
+            ${pnlHtml}
+            ${countHtml}
+        </div>`;
+    }
+
+    grid.innerHTML = html;
+}
 
 // Calculate and Update Dash Metrics
 function updateDashboard() {
@@ -425,6 +587,7 @@ function updateDashboard() {
 
     renderTradesList();
     drawEquityCurve();
+    renderCalendar();
 }
 
 // Render dynamic tables
@@ -494,17 +657,20 @@ function renderTradesList() {
 
         tr.innerHTML = `
             <td>${trade.date}</td>
-            <td><strong style="color: var(--accent-cyber);">${trade.pair}</strong></td>
+            <td><strong style="color: var(--accent-primary);">${trade.pair}</strong></td>
             <td><span class="badge ${trade.action === 'Buy' ? 'long' : 'short'}">${trade.action.toUpperCase()}</span></td>
             <td>${trade.lotSize} Lots</td>
             <td>${trade.entryPrice}</td>
             <td>${trade.exitPrice || '---'}</td>
             <td class="${pnlClass}">${pnlText}</td>
-            <td><span style="font-family: var(--font-code); font-size: 0.8rem; background: rgba(255,255,255,0.03); padding: 0.2rem 0.4rem; border-radius: 4px;">${trade.strategy}</span></td>
-            <td><div class="table-tags">${tagsHtml || 'None'}</div></td>
-            <td><span class="badge-outcome ${trade.status.toLowerCase()}">${outcomeLabel}</span></td>
-            <td>
-                <button class="btn-delete" onclick="deleteTrade('${trade.id}')" aria-label="Delete Trade Log">
+            <td><span style="font-family: var(--font-code); font-size: 0.78rem; background: rgba(255,255,255,0.03); padding: 0.2rem 0.4rem; border-radius: 4px;">${trade.strategy}</span></td>
+            <td><div class="table-tags">${tagsHtml || '<span style="color:var(--text-muted);font-size:0.75rem;">—</span>'}</div></td>
+            <td><span class="badge-outcome ${trade.status === 'Win' ? 'win' : trade.status === 'Loss' ? 'loss' : trade.outcome === 'BE' ? 'break' : 'open'}">${outcomeLabel}</span></td>
+            <td style="white-space:nowrap;">
+                <button class="btn-edit" onclick="editTrade('${trade.id}')" title="Edit Trade">
+                    <i class="fa-solid fa-pen"></i>
+                </button>
+                <button class="btn-delete" onclick="deleteTrade('${trade.id}')" title="Delete Trade">
                     <i class="fa-solid fa-trash-can"></i>
                 </button>
             </td>
