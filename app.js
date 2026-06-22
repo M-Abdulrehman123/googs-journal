@@ -127,9 +127,35 @@ function setupEventListeners() {
         let status = 'Open';
 
         if (isClosed) {
-            const isJpy = pair.endsWith('JPY');
-            const multiplier = isJpy ? 100 : 10000;
-            const contractSize = isJpy ? 1000 : 100000;
+            // Pip & PnL calculation by instrument type
+            const isJpy     = pair.endsWith('JPY');
+            const isGold    = pair === 'XAUUSD';
+            const isSilver  = pair === 'XAGUSD';
+            const isIndex   = ['US30','US100','SPX500'].includes(pair);
+
+            let multiplier, contractSize;
+
+            if (isGold) {
+                // XAU/USD: 1 pip = $0.01 movement, 100 oz per standard lot
+                multiplier   = 100;
+                contractSize = 100;
+            } else if (isSilver) {
+                // XAG/USD: 1 pip = $0.01 movement, 5000 oz per standard lot
+                multiplier   = 100;
+                contractSize = 5000;
+            } else if (isIndex) {
+                // Indices: priced in points, 1 point per unit
+                multiplier   = 1;
+                contractSize = 1;
+            } else if (isJpy) {
+                // JPY pairs: 2 decimal places, 1000 units per mini-lot
+                multiplier   = 100;
+                contractSize = 1000;
+            } else {
+                // Standard forex: 4 decimal places, 100,000 units per standard lot
+                multiplier   = 10000;
+                contractSize = 100000;
+            }
 
             if (action === 'Buy') {
                 pips = (exitPrice - entryPrice) * multiplier;
