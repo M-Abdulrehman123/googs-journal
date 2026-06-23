@@ -119,7 +119,7 @@ function setupEventListeners() {
             }
         }
 
-        const tradeDate = dateInput ? new Date(dateInput).toLocaleString() : new Date().toLocaleString();
+        const tradeDate = dateInput ? new Date(dateInput).toISOString() : new Date().toISOString();
 
         // Calculate PnL and Pips
         let pnl = 0;
@@ -258,7 +258,7 @@ function generateAndExportPdf() {
             const rowBg = i % 2 === 0 ? '#ffffff' : '#f8fafc';
 
             return `<tr style="background: ${rowBg};">
-                <td style="padding: 0.65rem 0.75rem; font-size: 0.78rem; color: #475569; white-space: nowrap;">${t.date}</td>
+                <td style="padding: 0.65rem 0.75rem; font-size: 0.78rem; color: #475569; white-space: nowrap;">${formatDate(t.date)}</td>
                 <td style="padding: 0.65rem 0.75rem; font-weight: 700; color: #0f172a; font-size: 0.9rem;">${t.pair}</td>
                 <td style="padding: 0.65rem 0.75rem;">
                     <span style="background:${actionBg}; color:${actionColor}; padding: 0.2rem 0.55rem; border-radius: 4px; font-size: 0.72rem; font-weight: 700; letter-spacing: 0.04em;">${t.action.toUpperCase()}</span>
@@ -405,6 +405,67 @@ function saveData() {
     localStorage.setItem('forexTrades', JSON.stringify(trades));
 }
 
+// Helper to safely parse dates from localized formats
+function parseSavedDate(dateStr) {
+    if (!dateStr) return new Date();
+    let d = new Date(dateStr);
+    if (!isNaN(d.getTime())) return d;
+    
+    const cleaned = dateStr.replace(/,/g, '').trim();
+    const parts = cleaned.split(/[\/\s-:]+/);
+    if (parts.length >= 3) {
+        let first = parseInt(parts[0], 10);
+        let second = parseInt(parts[1], 10);
+        let third = parseInt(parts[2], 10);
+        
+        let hour = parseInt(parts[3] || '0', 10);
+        let minute = parseInt(parts[4] || '0', 10);
+        let secondVal = parseInt(parts[5] || '0', 10);
+        
+        if (dateStr.toLowerCase().includes('pm') && hour < 12) hour += 12;
+        if (dateStr.toLowerCase().includes('am') && hour === 12) hour = 0;
+        
+        let year, month, day;
+        if (third > 1000) {
+            year = third;
+            if (first > 12) {
+                day = first;
+                month = second - 1;
+            } else if (second > 12) {
+                day = second;
+                month = first - 1;
+            } else {
+                day = first;
+                month = second - 1;
+            }
+        } else if (first > 1000) {
+            year = first;
+            month = second - 1;
+            day = third;
+        } else {
+            year = 2000 + third;
+            day = first;
+            month = second - 1;
+        }
+        
+        d = new Date(year, month, day, hour, minute, secondVal);
+        if (!isNaN(d.getTime())) return d;
+    }
+    return new Date();
+}
+
+// Helper to format ISO date string for display
+function formatDate(dateStr) {
+    if (!dateStr) return '—';
+    try {
+        const d = new Date(dateStr);
+        if (isNaN(d.getTime())) return dateStr;
+        return d.toLocaleString([], { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+    } catch (e) {
+        return dateStr;
+    }
+}
+
 // Load from LocalStorage
 function loadData() {
     const savedCapital = localStorage.getItem('startingCapital');
@@ -417,7 +478,24 @@ function loadData() {
 
     const savedTrades = localStorage.getItem('forexTrades');
     if (savedTrades) {
-        trades = JSON.parse(savedTrades);
+        try {
+            trades = JSON.parse(savedTrades);
+            // Migrate legacy/localized dates to standard ISO strings
+            let migrated = false;
+            trades.forEach(t => {
+                if (t.date && !t.date.includes('T') && !t.date.endsWith('Z')) {
+                    const parsed = parseSavedDate(t.date);
+                    t.date = parsed.toISOString();
+                    migrated = true;
+                }
+            });
+            if (migrated) {
+                saveData();
+            }
+        } catch (e) {
+            console.error('Error parsing or migrating saved trades:', e);
+            trades = [];
+        }
     }
 }
 
@@ -683,7 +761,7 @@ function renderTradesList() {
         }
 
         tr.innerHTML = `
-            <td>${trade.date}</td>
+            <td>${formatDate(trade.date)}</td>
             <td><strong style="color: var(--accent-primary);">${trade.pair}</strong></td>
             <td><span class="badge ${trade.action === 'Buy' ? 'long' : 'short'}">${trade.action.toUpperCase()}</span></td>
             <td>${trade.lotSize} Lots</td>
